@@ -1,7 +1,8 @@
 # This file is an implementation of the algorithm by Dinuzzo et al.
-# contained in the paper "Learning utput Kernels with Block Coordinate Descent"
+# contained in the paper "Learning output Kernels with Block Coordinate Descent"
 
 import numpy as np
+# import scipy as sp
 
 
 def solve_C_system(K, L, Y, lam):
@@ -15,7 +16,7 @@ def solve_C_system(K, L, Y, lam):
     LxK = np.kron(L.T, K)  # A composite array made of blocks of the second array scaled by the first.
     vY = np.matrix(np.reshape(Y, [-1, 1], order='F'))  # vectorized by rows (correct!)
     vC = np.linalg.inv(LxK + lam * np.eye(LxK.shape[0])) * vY
-    C = np.reshape(vC, Y.shape, order='F') # by rows (correct!)
+    C = np.reshape(vC, Y.shape, order='F')  # by rows (correct!)
     return C
 
 
@@ -28,7 +29,9 @@ def solve_Q_system(E, P, lam):
     """
     ETE = E.T * E
     ETE_one_dim = ETE.shape[0]
-    Q = np.linalg.inv(ETE + lam * np.eye(ETE_one_dim)) * P
+    # Q = np.linalg.pinv(ETE + lam * np.eye(ETE_one_dim)) * P
+    # Q = np.linalg.inv(C.T * K * K * C + lam * np.eye(ETE_one_dim)) * (0.5 * C.T * K * C - L)
+    Q = np.linalg.solve(ETE + lam * np.eye(ETE_one_dim), P) # We solve directly the linear system (stability)
     return Q
 
 
@@ -41,21 +44,27 @@ def block_wise_coord_descent(Y, K, lam, delta, verbose=0):
     :param verbose:
     :return:
     """
-    L, C, Z = np.zeros((Y.shape[1],Y.shape[1])), np.zeros(Y.shape), np.zeros(Y.shape)
+    L, C, Z = np.zeros((Y.shape[1], Y.shape[1])), np.zeros(Y.shape), np.zeros(Y.shape)
     err_matrix = Z + lam * C - Y
     step = 0
-    max_iterations = 2000
-    while np.linalg.norm(err_matrix,ord='fro') >= delta and step < max_iterations:
+    max_iterations = 1000
+    while np.linalg.norm(err_matrix, ord='fro') >= delta and step < max_iterations:
         C = solve_C_system(K, L, Y, lam)
+        if verbose > 1:
+            diff = np.linalg.norm(Y - lam * C - K * C * L, ord='fro')
+            print('Solution of C system with error: ', diff)
         E = K * C
         P = 0.5 * E.T * C - L
         Q = solve_Q_system(E, P, lam)
+        if verbose > 1:
+            diff = np.linalg.norm((E.T * E + lam * np.eye(E.shape[1])) * Q - P, ord='fro')
+            print('Solution of Q system with error: ', diff)
         L += lam * Q
         Z = E * L
         err_matrix = Z + lam * C - Y
         step += 1
         if verbose > 0:
-            print('Obj. error step %d: %.5f' % (step, np.linalg.norm(err_matrix,ord='fro')))
+            print('Obj. error step %d: %.5f' % (step, np.linalg.norm(err_matrix, ord='fro')))
     return L, C
 
 
@@ -87,10 +96,12 @@ if __name__ == "__main__":
 
     K = X * X.T
     lam = 0.01
-    delta = 0.01
-    L, C = block_wise_coord_descent(Y, K, lam, delta, verbose=1)
+    delta = 1e-10
+    L, C = block_wise_coord_descent(Y, K, lam, delta, verbose=2)
     pred = prediction_function(L, C, K[:, 0:3])
     print('Prediction: \n', pred)
     print('Classification: ', classify(pred))
+
+    print('Matrix of correlation among tasks L: \n', L)
 
 
