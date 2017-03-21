@@ -11,7 +11,7 @@ def solve_C_system(K, L, Y, lam):
     :param L:
     :param Y:
     :param lam:
-    :return:
+    :return: the matrix C, solving Eq. (6)
     """
     LxK = np.kron(L.T, K)  # A composite array made of blocks of the second array scaled by the first.
     vY = np.matrix(np.reshape(Y, [-1, 1], order='F'))  # vectorized by rows (correct!)
@@ -25,7 +25,7 @@ def solve_Q_system(E, P, lam):
     :param E:
     :param P:
     :param lam:
-    :return:
+    :return: the matrix Q, solving Eq. (8)
     """
     ETE = E.T * E
     ETE_one_dim = ETE.shape[0]
@@ -39,15 +39,15 @@ def block_wise_coord_descent(Y, K, lam, delta, verbose=0):
     """
     :param Y:
     :param K:
-    :param lam:
-    :param delta:
+    :param lam: trade-off between loss and regularization, see Eq. (1) (smaller means more importance for the loss)
+    :param delta: stop condition (smaller means a more precise solution)
     :param verbose:
     :return:
     """
     L, C, Z = np.zeros((Y.shape[1], Y.shape[1])), np.zeros(Y.shape), np.zeros(Y.shape)
     err_matrix = Z + lam * C - Y
     step = 0
-    max_iterations = 1000
+    max_iterations = 10000
     while np.linalg.norm(err_matrix, ord='fro') >= delta and step < max_iterations:
         C = solve_C_system(K, L, Y, lam)
         if verbose > 1:
@@ -64,7 +64,7 @@ def block_wise_coord_descent(Y, K, lam, delta, verbose=0):
         err_matrix = Z + lam * C - Y
         step += 1
         if verbose > 0:
-            print('Obj. error step %d: %.5f' % (step, np.linalg.norm(err_matrix, ord='fro')))
+            print('Obj. error step %d: %.8f' % (step, np.linalg.norm(err_matrix, ord='fro')))
     return L, C
 
 
@@ -95,9 +95,9 @@ if __name__ == "__main__":
     Y = enc.transform(y).toarray()
 
     K = X * X.T
-    lam = 0.01
-    delta = 1e-10
-    L, C = block_wise_coord_descent(Y, K, lam, delta, verbose=2)
+    lam = 1.0
+    delta = 1e-5
+    L, C = block_wise_coord_descent(Y, K, lam, delta, verbose=1)
     pred = prediction_function(L, C, K[:, 0:3])
     print('Prediction: \n', pred)
     print('Classification: ', classify(pred))
