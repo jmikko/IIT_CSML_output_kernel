@@ -15,7 +15,8 @@ def solve_C_system(K, L, Y, lam):
     """
     LxK = np.kron(L.T, K)  # A composite array made of blocks of the second array scaled by the first.
     vY = np.matrix(np.reshape(Y, [-1, 1], order='F'))  # vectorized by rows (correct!)
-    vC = np.linalg.inv(LxK + lam * np.eye(LxK.shape[0])) * vY
+    # vC = np.linalg.inv(LxK + lam * np.eye(LxK.shape[0])) * vY
+    vC = np.linalg.solve(LxK + lam * np.eye(LxK.shape[0]), vY)  # We solve directly the linear system (stability)
     C = np.reshape(vC, Y.shape, order='F')  # by rows (correct!)
     return C
 
@@ -30,8 +31,7 @@ def solve_Q_system(E, P, lam):
     ETE = E.T * E
     ETE_one_dim = ETE.shape[0]
     # Q = np.linalg.pinv(ETE + lam * np.eye(ETE_one_dim)) * P
-    # Q = np.linalg.inv(C.T * K * K * C + lam * np.eye(ETE_one_dim)) * (0.5 * C.T * K * C - L)
-    Q = np.linalg.solve(ETE + lam * np.eye(ETE_one_dim), P) # We solve directly the linear system (stability)
+    Q = np.linalg.solve(ETE + lam * np.eye(ETE_one_dim), P)  # We solve directly the linear system (stability)
     return Q
 
 
@@ -72,7 +72,7 @@ def prediction_function(L, C, Ktest):
     """
     :param L:
     :param C:
-    :param Ktest: is a Gram matrix with shape (n_tr, n_te)
+    :param Ktest: a Gram matrix with shape (training_examples, test_examples)
     :return:
     """
     return L * C.T * Ktest
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     K = X * X.T
     lam = 1.0
     delta = 1e-5
-    L, C = block_wise_coord_descent(Y, K, lam, delta, verbose=1)
+    L, C = block_wise_coord_descent(Y, K, lam, delta, verbose=2)
     pred = prediction_function(L, C, K[:, 0:3])
     print('Prediction: \n', pred)
     print('Classification: ', classify(pred))
