@@ -94,22 +94,42 @@ class DinuzzoOutputKernel:
 
 if __name__ == "__main__":
     # Example of usage
+
+    # With CIFAR-10
+    from datasets import load_cifar10, Datasets, Dataset
+
+    datasets = load_cifar10(one_hot=True, partitions=[0.01, 0.01])
+    training_set_X = np.matrix(datasets[0].data)
+    training_set_Y = datasets[0].target
+    test_set_X = np.matrix(datasets[1].data)
+    test_set_Y = datasets[1].target
+    Ktr = training_set_X * training_set_X.T
+    lam = 1.0
+    delta = 1e-5
+    Ktrte = training_set_X * test_set_X.T
+
+    dinuzzo = DinuzzoOutputKernel(lam=lam, delta=delta, verbose=1)
+    dinuzzo.run(training_set_Y, Ktr)
+    print('Prediction: \n', dinuzzo.prediction_function(Ktrte))
+    print('Classification: ', dinuzzo.classify(Ktrte))
+    print('Matrix of correlation among tasks L: \n', dinuzzo.get_L())
+
+    # With iris
     from sklearn.datasets import load_iris
     from sklearn.preprocessing import OneHotEncoder
+
     iris_data = load_iris()
     enc = OneHotEncoder()
-
     X = np.matrix(iris_data.data)
     y = iris_data.target
     y = y.reshape(-1, 1)
     enc.fit(y)
     Y = enc.transform(y).toarray()
-
     K = X * X.T
     lam = 1.0
     delta = 1e-5
 
-    dinuzzo = DinuzzoOutputKernel(lam=lam, delta=delta, verbose=2)
+    dinuzzo = DinuzzoOutputKernel(lam=lam, delta=delta, verbose=0)
     dinuzzo.run(Y, K)
     print('Prediction: \n', dinuzzo.prediction_function(K[:, 0:3]))
     print('Classification: ', dinuzzo.classify(K[:, 0:3]))
