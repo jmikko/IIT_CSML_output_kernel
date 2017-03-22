@@ -59,7 +59,7 @@ class DinuzzoOutputKernel:
         L, C, Z = np.zeros((Y.shape[1], Y.shape[1])), np.zeros(Y.shape), np.zeros(Y.shape)
         err_matrix = Z + self.lam * C - Y
         step = 0
-        max_iterations = 10000
+        max_iterations = 100
         while np.linalg.norm(err_matrix, ord='fro') >= delta and step < max_iterations:
             C = self.solve_C_system(K, L, Y)
             if self.verbose > 1:
@@ -90,50 +90,63 @@ class DinuzzoOutputKernel:
         return self.L * self.C.T * Ktest
 
     def classify(self, Ktest):
-        return np.argmax(self.prediction_function(Ktest), axis=0)
+        return np.array(np.argmax(self.prediction_function(Ktest), axis=0))[0]
 
 if __name__ == "__main__":
     # Example of usage
+    from sklearn.metrics import accuracy_score
 
     # With CIFAR-10
-    from datasets import load_cifar10, Datasets, Dataset
+    CIFAR10 = True
+    if CIFAR10:
+        from datasets import load_cifar10, Datasets, Dataset
 
-    datasets = load_cifar10(one_hot=True, partitions=[0.01, 0.01])
-    training_set_X = np.matrix(datasets[0].data)
-    training_set_Y = datasets[0].target
-    test_set_X = np.matrix(datasets[1].data)
-    test_set_Y = datasets[1].target
-    Ktr = training_set_X * training_set_X.T
-    lam = 1.0
-    delta = 1e-5
-    Ktrte = training_set_X * test_set_X.T
+        datasets = load_cifar10(one_hot=True, partitions=[0.01, 0.01])
+        training_set_X = np.matrix(datasets[0].data)
+        training_set_Y = datasets[0].target
+        validation_set_X = np.matrix(datasets[1].data)
+        validation_set_Y = datasets[1].target
+        test_set_X = np.matrix(datasets[2].data)
+        test_set_Y = datasets[2].target
+        Ktr = training_set_X * training_set_X.T
+        lam = 0.0001
+        delta = 1e-5
+        Ktrte = training_set_X * test_set_X.T
 
-    dinuzzo = DinuzzoOutputKernel(lam=lam, delta=delta, verbose=1)
-    dinuzzo.run(training_set_Y, Ktr)
-    print('Prediction: \n', dinuzzo.prediction_function(Ktrte))
-    print('Classification: ', dinuzzo.classify(Ktrte))
-    print('Matrix of correlation among tasks L: \n', dinuzzo.get_L())
+        dinuzzo = DinuzzoOutputKernel(lam=lam, delta=delta, verbose=1)
+        dinuzzo.run(training_set_Y, Ktr)
+        print('Prediction: \n', dinuzzo.prediction_function(Ktrte))
+        print('Classification: ', dinuzzo.classify(Ktrte))
+        print('Matrix of correlation among tasks L: \n', dinuzzo.get_L())
+
+        classify = dinuzzo.classify(Ktrte)
+        y_true = np.argmax(test_set_Y, axis=1)
+        accuracy = accuracy_score([y for y in y_true], [y for y in classify])
+
+        print('Accuracy: ',accuracy)
 
     # With iris
-    from sklearn.datasets import load_iris
-    from sklearn.preprocessing import OneHotEncoder
+    IRIS = False
+    if IRIS:
+        from sklearn.datasets import load_iris
+        from sklearn.preprocessing import OneHotEncoder
 
-    iris_data = load_iris()
-    enc = OneHotEncoder()
-    X = np.matrix(iris_data.data)
-    y = iris_data.target
-    y = y.reshape(-1, 1)
-    enc.fit(y)
-    Y = enc.transform(y).toarray()
-    K = X * X.T
-    lam = 1.0
-    delta = 1e-5
+        iris_data = load_iris()
+        enc = OneHotEncoder()
+        X = np.matrix(iris_data.data)
+        y = iris_data.target
+        y = y.reshape(-1, 1)
+        enc.fit(y)
+        Y = enc.transform(y).toarray()
+        K = X * X.T
+        lam = 1.0
+        delta = 1e-5
 
-    dinuzzo = DinuzzoOutputKernel(lam=lam, delta=delta, verbose=0)
-    dinuzzo.run(Y, K)
-    print('Prediction: \n', dinuzzo.prediction_function(K[:, 0:3]))
-    print('Classification: ', dinuzzo.classify(K[:, 0:3]))
-    print('Matrix of correlation among tasks L: \n', dinuzzo.get_L())
+        dinuzzo = DinuzzoOutputKernel(lam=lam, delta=delta, verbose=0)
+        dinuzzo.run(Y, K)
+        print('Prediction: \n', dinuzzo.prediction_function(K[:, 0:3]))
+        print('Classification: ', dinuzzo.classify(K[:, 0:3]))
+        print('Matrix of correlation among tasks L: \n', dinuzzo.get_L())
 
 
 
