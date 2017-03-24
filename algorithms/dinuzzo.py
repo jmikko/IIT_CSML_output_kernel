@@ -30,7 +30,7 @@ class DinuzzoOutputKernel:
         LxK = np.kron(L.T, K)  # A composite array made of blocks of the second array scaled by the first.
         vY = np.matrix(np.reshape(Y, [-1, 1], order='F'))  # vectorized by rows (correct!)
         # vC = np.linalg.inv(LxK + self.lam * np.eye(LxK.shape[0])) * vY
-        vC = np.linalg.solve(LxK + self.lam * np.eye(LxK.shape[0]), vY)  # We solve directly the linear system (stability)
+        vC = np.linalg.solve(LxK + self.lam * np.eye(LxK.shape[0]), vY)  # We solve the linear system
         C = np.reshape(vC, Y.shape, order='F')  # by rows (correct!)
         return C
 
@@ -59,7 +59,7 @@ class DinuzzoOutputKernel:
         L, C, Z = np.zeros((Y.shape[1], Y.shape[1])), np.zeros(Y.shape), np.zeros(Y.shape)
         err_matrix = Z + self.lam * C - Y
         step = 0
-        max_iterations = 100
+        max_iterations = 10000
         while np.linalg.norm(err_matrix, ord='fro') >= delta and step < max_iterations:
             C = self.solve_C_system(K, L, Y)
             if self.verbose > 1:
@@ -100,6 +100,7 @@ if __name__ == "__main__":
     CIFAR10 = True
     if CIFAR10:
         from datasets import load_cifar10, Datasets, Dataset
+        import matplotlib.pyplot as plt
 
         datasets = load_cifar10(one_hot=True, partitions=[0.01, 0.01])
         training_set_X = np.matrix(datasets[0].data)
@@ -109,7 +110,7 @@ if __name__ == "__main__":
         test_set_X = np.matrix(datasets[2].data)
         test_set_Y = datasets[2].target
         Ktr = training_set_X * training_set_X.T
-        lam = 0.0001
+        lam = 100.0
         delta = 1e-5
         Ktrte = training_set_X * test_set_X.T
 
@@ -117,13 +118,34 @@ if __name__ == "__main__":
         dinuzzo.run(training_set_Y, Ktr)
         print('Prediction: \n', dinuzzo.prediction_function(Ktrte))
         print('Classification: ', dinuzzo.classify(Ktrte))
-        print('Matrix of correlation among tasks L: \n', dinuzzo.get_L())
+
+        L = np.array(dinuzzo.get_L())
+        print('Matrix of correlation among tasks L: \n', L)
 
         classify = dinuzzo.classify(Ktrte)
         y_true = np.argmax(test_set_Y, axis=1)
-        accuracy = accuracy_score([y for y in y_true], [y for y in classify])
+        accuracy_test = accuracy_score([y for y in y_true], [y for y in classify])
 
-        print('Accuracy: ',accuracy)
+        classify = dinuzzo.classify(Ktr)
+        y_true = np.argmax(training_set_Y, axis=1)
+        accuracy_training = accuracy_score([y for y in y_true], [y for y in classify])
+
+        print('Train accuracy: ', accuracy_training)
+        print('Test accuracy: ', accuracy_test)
+
+        dict_ID_name = datasets[2].general_info_dict['dict_ID_name']
+        print('Correspondence ID_class - Class:\n', dict_ID_name)
+        # Plots:
+        np.fill_diagonal(L, 0.0)
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        cax = ax.matshow(L, interpolation='nearest', cmap=plt.cm.gray)
+        fig.colorbar(cax)
+        plt.title('Matrix of correlation among tasks L')
+        alpha = ['' + dict_ID_name[2 * k] + ' ' + dict_ID_name[2 * k + 1] for k in range(5)]
+        ax.set_xticklabels([''] + alpha)
+        ax.set_yticklabels([''] + alpha)
+        plt.show()
 
     # With iris
     IRIS = False
