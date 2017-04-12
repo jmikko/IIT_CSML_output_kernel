@@ -2,6 +2,7 @@
 # contained in the paper "Learning output Kernels with Block Coordinate Descent"
 
 import numpy as np
+from scipy.linalg import solve_sylvester
 # import scipy as sp
 
 
@@ -9,17 +10,18 @@ class DinuzzoOutputKernel:
     """ Implementation of the algorithm by Dinuzzo et al.  contained in the paper
     Learning output Kernels with Block Coordinate Descent """
 
-    def __init__(self, lam, delta, verbose=0):
+    def __init__(self, lam, delta, max_iterations=10000, verbose=0):
         self.lam = lam
         self.delta = delta
         self.L = None
         self.C = None
+        self.max_iterations = max_iterations
         self.verbose = verbose
 
     def get_L(self):
         return self.L
 
-    def solve_C_system(self, K, L, Y):
+    def solve_C_system_old(self, K, L, Y):
         """
         :param K:
         :param L:
@@ -32,6 +34,17 @@ class DinuzzoOutputKernel:
         # vC = np.linalg.inv(LxK + self.lam * np.eye(LxK.shape[0])) * vY
         vC = np.linalg.solve(LxK + self.lam * np.eye(LxK.shape[0]), vY)  # We solve the linear system
         C = np.reshape(vC, Y.shape, order='F')  # by rows (correct!)
+        return C
+
+    def solve_C_system(self, Kinv, L, KinvY):
+        """
+        :param Kinv:
+        :param L:
+        :param KinvY:
+        :param lam:
+        :return: the matrix C, solving Eq. (6) in the form C * L + (K^-1 * lambda) * C = K^-1 * Y as a Sylvester eq.
+        """
+        C = np.matrix(solve_sylvester(Kinv * self.lam, L, KinvY))
         return C
 
     def solve_Q_system(self, E, P):
@@ -59,9 +72,10 @@ class DinuzzoOutputKernel:
         L, C, Z = np.zeros((Y.shape[1], Y.shape[1])), np.zeros(Y.shape), np.zeros(Y.shape)
         err_matrix = Z + self.lam * C - Y
         step = 0
-        max_iterations = 10000
-        while np.linalg.norm(err_matrix, ord='fro') >= delta and step < max_iterations:
-            C = self.solve_C_system(K, L, Y)
+        Kinv = np.linalg.inv(K)
+        KinvY = Kinv * Y
+        while np.linalg.norm(err_matrix, ord='fro') >= self.delta and step < self.max_iterations:
+            C = self.solve_C_system(Kinv, L, KinvY)
             if self.verbose > 1:
                 diff = np.linalg.norm(Y - lam * C - K * C * L, ord='fro')
                 print('Solution of C system with error: ', diff)
