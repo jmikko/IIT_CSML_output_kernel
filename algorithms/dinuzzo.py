@@ -72,7 +72,7 @@ class DinuzzoOutputKernel:
         L, C, Z = np.zeros((Y.shape[1], Y.shape[1])), np.zeros(Y.shape), np.zeros(Y.shape)
         err_matrix = Z + self.lam * C - Y
         step = 0
-        Kinv = np.linalg.inv(K)
+        Kinv = np.linalg.pinv(K)
         KinvY = Kinv * Y
         while np.linalg.norm(err_matrix, ord='fro') >= self.delta and step < self.max_iterations:
             C = self.solve_C_system(Kinv, L, KinvY)
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     from sklearn.metrics import accuracy_score
 
     # With CIFAR-10
-    CIFAR10 = True
+    CIFAR10 = False
     if CIFAR10:
         from datasets import load_cifar10, Datasets, Dataset
         import matplotlib.pyplot as plt
@@ -162,10 +162,11 @@ if __name__ == "__main__":
         plt.show()
 
     # With iris
-    IRIS = False
+    IRIS = True
     if IRIS:
         from sklearn.datasets import load_iris
         from sklearn.preprocessing import OneHotEncoder
+        from sklearn.metrics import accuracy_score
 
         iris_data = load_iris()
         enc = OneHotEncoder()
@@ -178,11 +179,16 @@ if __name__ == "__main__":
         lam = 1.0
         delta = 1e-5
 
-        dinuzzo = DinuzzoOutputKernel(lam=lam, delta=delta, verbose=0)
+        dinuzzo = DinuzzoOutputKernel(lam=lam, delta=delta, max_iterations=1000, verbose=1)
         dinuzzo.run(Y, K)
-        print('Prediction: \n', dinuzzo.prediction_function(K[:, 0:3]))
-        print('Classification: ', dinuzzo.classify(K[:, 0:3]))
+        print('Prediction: \n', dinuzzo.prediction_function(K[:, 0::10]))
+        print('Classification: ', dinuzzo.classify(K[:, 0::10]))
         print('Matrix of correlation among tasks L: \n', dinuzzo.get_L())
+
+        y_true = np.argmax(Y, axis=1)
+        classify = dinuzzo.classify(K)
+        accuracy_train = accuracy_score([y for y in y_true], [y for y in classify])
+        print('Accuracy training set:',accuracy_train)
 
 
 

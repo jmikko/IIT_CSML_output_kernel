@@ -7,7 +7,7 @@ import time
 from save_and_load import load_obj
 
 # datasets = load_cifar100(one_hot=True, partitions=[0.01, 0.01])
-datasets = load_obj('../Data/CIFAR-100/partitions/datasets_100')
+datasets = load_obj('../Data/CIFAR-100/partitions/datasets_1003')
 
 training_set_X = np.matrix(datasets.train.data)
 training_set_Y = datasets.train.target

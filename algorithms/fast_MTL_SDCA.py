@@ -77,6 +77,7 @@ if __name__ == "__main__":
     if IRIS:
         from sklearn.datasets import load_iris
         from sklearn.preprocessing import OneHotEncoder
+        from sklearn.metrics import accuracy_score
 
         iris_data = load_iris()
         enc = OneHotEncoder()
@@ -95,5 +96,7 @@ if __name__ == "__main__":
         beta = mtl_sdca(K=K, k=k, lam=lam, C=C, tasks=y)
 
         classification = classify(beta, K)
-        print(classification)
+        y_true = np.argmax(Y, axis=1)
+        accuracy_train = accuracy_score([y for y in y_true], [y for y in classification])
+        print('Accuracy training set:', accuracy_train)
 
