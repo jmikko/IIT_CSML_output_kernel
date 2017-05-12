@@ -6,8 +6,8 @@ import numpy as np
 import time
 from save_and_load import load_obj
 
-#datasets = load_cifar10(one_hot=True, partitions=[0.01, 0.01])
-datasets = load_obj('../Data/CIFAR-10/partitions/datasets3')
+#datasets = load_cifar100(one_hot=True, partitions=[0.001, 0.001])
+datasets = load_obj('../Data/CIFAR-100/partitions/datasets_100')
 
 training_set_X = np.matrix(datasets.train.data)
 training_set_Y = np.ones((training_set_X.shape[0], ))
@@ -68,11 +68,11 @@ list_of_lam = [0.5]  # [2**n for n in range(-1, 10)]
 list_of_C = [16.0]  # [2**n for n in range(-1, 10)]
 list_of_lam_C = [(l, c) for l in list_of_lam for c in list_of_C]
 
-k = 2
-Ktr = training_set_X * training_set_X.T
-Ktrte = training_set_X * test_set_X.T
-Ktrva = training_set_X * validation_set_X.T
-Kftrte = final_training_set_X * test_set_X.T
+k = 1
+#Ktr = training_set_X * training_set_X.T
+#Ktrte = training_set_X * test_set_X.T
+#Ktrva = training_set_X * validation_set_X.T
+#Kftrte = final_training_set_X * test_set_X.T
 Kftr = final_training_set_X * final_training_set_X.T
 
 max_acc = 0.0
@@ -102,7 +102,7 @@ for (lam, C) in list_of_lam_C:
 print('Validated lambda, C:', optimal_lam, optimal_C)
 
 time_end_validation = time.time() - time_start
-efficient = EfficientOutputKernel(lam=optimal_lam, C=optimal_C, k=k, max_iterations=5000, verbose=2)
+efficient = EfficientOutputKernel(lam=optimal_lam, C=optimal_C, k=k, max_iterations=10000, verbose=1)
 efficient.run(final_training_set_tasks, final_training_set_Y, Kftr)
 time_end_train = time.time() - time_end_validation - time_start
 classify = efficient.classify(Kftrte)

@@ -3,7 +3,7 @@
 
 import numpy as np
 import scipy as sp
-from scipy.optimize import minimize_scalar
+from scipy.optimize import minimize_scalar, newton
 # import cvxopt
 
 class EfficientOutputKernel:
@@ -18,6 +18,7 @@ class EfficientOutputKernel:
         self.omega = None
         self.max_iterations = max_iterations
         self.verbose = verbose
+        self.max_sub_iterations = 100
 
     def get_beta(self):
         return self.beta
@@ -60,12 +61,42 @@ class EfficientOutputKernel:
             res += float(eta * ((a * delta**2 + 2 * b[r, r] * delta + c[r, r])**(2 * self.k)))
             res += eta * (2 * np.sum([(b[r, s] * delta + c[r, s])**(2 * self.k)
                                       for r in range(n_tasks) for s in range(n_tasks) if s != r]))
-            res += eta * np.sum([c[s, z]**(2 * self.k) for s in range(n_tasks)
-                                 for z in range(n_tasks) if s != r and z != r])
+            # res += eta * np.sum([c[s, z]**(2 * self.k) for s in range(n_tasks)
+            #                     for z in range(n_tasks) if s != r and z != r])  # Useless for the "argmin" on delta
             return res
 
-        res = minimize_scalar(F)
-        return res['x']
+        def dL_conj(v):
+            return v - (labels[i] / self.C)
+
+        def dF(delta):
+            r = tasks[i]
+            res = dL_conj((alpha[i] + delta) / self.C**2)
+            res += float(eta * (2 * self.k * (a * delta**2 + 2 * b[r, r] * delta + c[r, r])**(2 * self.k - 1))
+                         * (2 * a * delta + 2 * b[r, r]))
+            res += eta * (2 * 2 * self.k * np.sum([(b[r, s] * delta + c[r, s])**(2 * self.k - 1) * b[r, s]
+                                              for r in range(n_tasks) for s in range(n_tasks) if s != r]))
+            return res
+
+        def ddF(delta):
+            r = tasks[i]
+            res = 1.0 / self.C**2
+            res += float(eta * (2 * self.k * (2 * self.k - 1) * (a * delta**2 + 2 * b[r, r] * delta + c[r, r])**(2 * self.k - 2) * (2 * a * delta + 2 * b[r, r])**2 +
+                                2 * self.k * (a * delta**2 + 2 * b[r, r] * delta + c[r, r])**(2 * self.k - 1) * 2 * a))
+            res += eta * (2 * 2 * self.k * (2 * self.k - 1) * np.sum([(b[r, s] * delta + c[r, s])**(2 * self.k - 2) *
+                                                                      b[r, s]**2 for r in range(n_tasks)
+                                                                      for s in range(n_tasks) if s != r]))
+            return res
+
+        min_fun = False
+        if min_fun:
+            res = minimize_scalar(F)
+            res = res['x']
+        else:  # newton => zeros in the dF, given the ddF
+            try:
+                res = newton(dF, 0.0, fprime=ddF, maxiter=self.max_sub_iterations, tol=1e-6)  # minimize_scalar(F)
+            except RuntimeError:
+                res = 0.0
+        return res
 
     def run(self, tasks, labels, K, epsilon=1e-5):
         n_ex = len(tasks)

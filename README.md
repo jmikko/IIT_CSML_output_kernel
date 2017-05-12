@@ -11,3 +11,4 @@ b) From the paper "Efficient Output Kernel Learning for Multiple Task", Algorith
 - Datasets -
 
 I) CIFAR-10 with features extracted by using Inception V2 from TensorFlow
+II) CIFAR-100 with features extracted by using Inception V2 from TensorFlow
